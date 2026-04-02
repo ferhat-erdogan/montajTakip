@@ -115,19 +115,19 @@
 
         // URL'den gelen verileri sakla
         if (urlParam && keyParam) {
-            localStorage.setItem('sb_url', urlParam);
-            localStorage.setItem('sb_key', keyParam);
+            localStorage.setItem('montaj_takip_sb_url', urlParam);
+            localStorage.setItem('montaj_takip_sb_key', keyParam);
             // Cookie olarak da sakla (Index.html'in okuması için)
-            document.cookie = `sb_url=${urlParam}; path=/; max-age=2592000`;
-            document.cookie = `sb_key=${keyParam}; path=/; max-age=2592000`;
+            document.cookie = `montaj_takip_sb_url=${urlParam}; path=/; max-age=2592000`;
+            document.cookie = `montaj_takip_sb_key=${keyParam}; path=/; max-age=2592000`;
             document.getElementById('paramStatus').classList.remove('hidden');
         }
 
         async function handleAuth() {
             const email = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value.trim();
-            const url = localStorage.getItem('sb_url');
-            const key = localStorage.getItem('sb_key');
+            const url = localStorage.getItem('montaj_takip_sb_url');
+            const key = localStorage.getItem('montaj_takip_sb_key');
 
             if (!url || !key) {
                 showToast("URL/Key Eksik! Linki kontrol edin.", false);
@@ -159,8 +159,8 @@
 
         // Zaten giriş yapmışsa yönlendir
         window.onload = () => {
-            const url = localStorage.getItem('sb_url');
-            const key = localStorage.getItem('sb_key');
+            const url = localStorage.getItem('montaj_takip_sb_url');
+            const key = localStorage.getItem('montaj_takip_sb_key');
             if (url && key) {
                 const sb = supabase.createClient(url, key);
                 sb.auth.getUser().then(({data}) => {

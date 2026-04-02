@@ -194,8 +194,8 @@
         }
 
         async function initApp() {
-            const url = getCookie('sb_url') || localStorage.getItem('sb_url');
-            const key = getCookie('sb_key') || localStorage.getItem('sb_key');
+            const url = getCookie('montaj_takip_sb_url') || localStorage.getItem('montaj_takip_sb_url');
+            const key = getCookie('montaj_takip_sb_key') || localStorage.getItem('montaj_takip_sb_key');
             
             if(!url || !key) { forceLogout(); return; }
 

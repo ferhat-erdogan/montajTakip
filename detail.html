@@ -97,7 +97,7 @@
         // --- OTURUMU VE VERİLERİ TEMİZLE ---
         function forceLogout() {
             localStorage.clear();
-            const cookies = ["sb_session", "sb_url", "sb_key"];
+            const cookies = ["sb_session", "montaj_takip_sb_url", "montaj_takip_sb_key"];
             cookies.forEach(c => document.cookie = c + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;");
             window.location.href = 'index.html'; // Ana sayfaya (login'e) gönder
         }
@@ -116,8 +116,8 @@
         async function init() {
             const params = new URLSearchParams(window.location.search);
             currentSiteId = params.get('id');
-            const url = getConfig('sb_url');
-            const key = getConfig('sb_key');
+            const url = getConfig('montaj_takip_sb_url');
+            const key = getConfig('montaj_takip_sb_key');
 
             if(!url || !key || !currentSiteId) return location.href='index.html';
 
