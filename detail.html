@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Takip | ToolBox</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #0f1217;
+            --card: #181d25;
+            --accent: #7cfc00;
+            --delivery: #ff9800;
+            --not-home: #ef4444;
+            --note: #ffeb3b;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+        body { 
+            background: var(--bg); color: #e2e8f0; font-family: 'Plus Jakarta Sans', sans-serif;
+            background-image: radial-gradient(circle at top left, #1a222d 0%, #0f1217 60%);
+            min-height: 100vh; margin: 0;
+        }
+
+        /* Navigasyon ve Başlık */
+        .block-scroll { display: flex; overflow-x: auto; gap: 12px; padding: 10px 0 25px; scrollbar-width: none; }
+        .block-scroll::-webkit-scrollbar { display: none; }
+        .block-tab { padding: 12px 24px; border-radius: 18px; background: var(--card); border: 1px solid var(--border) !important; font-weight: 800; white-space: nowrap; transition: 0.3s; color: #64748b; font-size: 13px; cursor: pointer; }
+        .block-tab.active { background: var(--accent); color: #000; border-color: var(--accent) !important; box-shadow: 0 8px 20px rgba(124, 252, 0, 0.15); }
+
+        /* Ünite Izgarası */
+        .u-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; max-width: 450px; margin: 0 auto; padding-bottom: 40px; }
+        .u-circle { aspect-ratio: 1/1; border-radius: 50%; border: 2px solid var(--border) !important; background: #11151c; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.2rem; transition: 0.2s; position: relative; color: #475569; cursor: pointer; }
+        .u-circle:active { transform: scale(0.9); }
+
+        /* Durum Renkleri */
+        .u-circle.montaj { border-color: var(--accent) !important; color: var(--accent); }
+        .u-circle.teslim { border-color: var(--delivery) !important; color: var(--delivery); }
+        .u-circle.not-home { border-color: var(--not-home) !important; color: var(--not-home); }
+        .u-circle.just-note { border-color: var(--note) !important; color: var(--note); }
+        .u-circle.with-note::after { content: "\f303"; font-family: "Font Awesome 6 Free"; font-weight: 900; position: absolute; top: -2px; right: -2px; font-size: 8px; background: var(--note); color: #000; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg) !important; }
+
+        /* Modal */
+        .overlay { position: fixed; inset: 0; background: rgba(15, 18, 23, 0.9); backdrop-filter: blur(10px); display: none; justify-content: center; align-items: center; z-index: 2000; padding: 20px; }
+        .modal-card { background: #1c222a; border: 1px solid var(--border) !important; border-radius: 35px; width: 100%; max-width: 380px; padding: 30px; text-align: center; }
+        .opt-btn { width: 100%; padding: 15px; margin-bottom: 12px; border-radius: 18px; background: #0b0e12; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 12px; border: 1px solid var(--border) !important; transition: 0.2s; cursor: pointer; }
+        
+        #loader { position: fixed; inset: 0; background: var(--bg); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+    </style>
+</head>
+<body class="p-6">
+
+    <div id="loader"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-[#7cfc00]"></i></div>
+
+    <header class="flex items-center gap-4 mb-8 pt-2">
+        <button onclick="location.href='index.html'" class="w-11 h-11 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <h1 id="siteTitle" class="text-xl font-black uppercase tracking-tight text-white italic">...</h1>
+    </header>
+
+    <div id="blockNav" class="block-scroll"></div>
+    <div id="unitGrid" class="u-grid"></div>
+
+    <div id="selectionModal" class="overlay">
+        <div class="modal-card">
+            <div id="mTitle" class="text-3xl font-black mb-6 text-[#7cfc00] italic uppercase">DAİRE 00</div>
+            <div class="mb-6">
+                <input type="text" id="noteInput" class="w-full bg-[#0b0e12] border border-white/5 rounded-2xl p-4 text-center text-white outline-none focus:border-[#7cfc00]" placeholder="Not ekleyin...">
+            </div>
+            <button class="opt-btn" onclick="updateUnit('montaj')"><i class="fa-solid fa-check-double text-[#7cfc00]"></i> Montaj Bitti</button>
+            <button class="opt-btn" onclick="updateUnit('teslim')"><i class="fa-solid fa-hand-holding-heart text-[#ff9800]"></i> Teslim Edildi</button>
+            <button class="opt-btn" onclick="updateUnit('not-home')"><i class="fa-solid fa-house-user text-[#ef4444]"></i> Evde Yok</button>
+            <button class="opt-btn" onclick="updateUnit('just-note')"><i class="fa-solid fa-comment-dots text-[#ffeb3b]"></i> Notu Kaydet</button>
+            <button class="w-full text-slate-500 font-bold text-[10px] mt-6 uppercase tracking-widest" onclick="closeModal()">Kapat</button>
+        </div>
+    </div>
+
+    <script>
+        let db;
+        let currentSiteId, currentBlockId, activeUnit, currentBlockObj;
+
+        function getConfig(name) {
+            let value = `; ${document.cookie}`;
+            let parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return localStorage.getItem(name);
+        }
+
+        // --- OTURUMU VE VERİLERİ TEMİZLE ---
+        function forceLogout() {
+            localStorage.clear();
+            const cookies = ["sb_session", "sb_url", "sb_key"];
+            cookies.forEach(c => document.cookie = c + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;");
+            window.location.href = 'index.html'; // Ana sayfaya (login'e) gönder
+        }
+
+        // --- RLS VE YETKİ HATASI KONTROLÜ ---
+        function checkAuth(error) {
+            if (!error) return false;
+            // PGRST301: RLS ihlali (Kullanıcı silindiğinde veritabanı erişim hatası)
+            if (error.code === "PGRST301" || error.status === 401 || error.status === 403 || error.message.includes("policy") || error.message.includes("JWT")) {
+                forceLogout();
+                return true;
+            }
+            return false;
+        }
+
+        async function init() {
+            const params = new URLSearchParams(window.location.search);
+            currentSiteId = params.get('id');
+            const url = getConfig('sb_url');
+            const key = getConfig('sb_key');
+
+            if(!url || !key || !currentSiteId) return location.href='index.html';
+
+            db = supabase.createClient(url, key);
+
+            // Dinleyici: Oturum anlık olarak düşerse (logout vs) algıla
+            db.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_OUT' || !session) forceLogout();
+            });
+
+            const { data: site, error } = await db.from('sites').select('site_name').eq('id', currentSiteId).single();
+            if(checkAuth(error)) return;
+            
+            if(site) document.getElementById('siteTitle').innerText = site.site_name;
+
+            await loadBlocks();
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        async function loadBlocks() {
+            const { data: blocks, error } = await db.from('blocks').select('*').eq('site_id', currentSiteId).order('block_name');
+            if(checkAuth(error)) return;
+
+            const nav = document.getElementById('blockNav');
+            nav.innerHTML = blocks.map(b => `<button id="btn-${b.id}" class="block-tab" onclick='selectBlock(${JSON.stringify(b)})'>${b.block_name} BLOK</button>`).join('');
+            if(blocks.length > 0) selectBlock(blocks[0]);
+        }
+
+        async function selectBlock(block) {
+            currentBlockId = block.id;
+            currentBlockObj = block;
+            document.querySelectorAll('.block-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(`btn-${block.id}`).classList.add('active');
+
+            const { data: stats, error } = await db.from('unit_status').select('*').eq('block_id', block.id);
+            if(checkAuth(error)) return;
+
+            const unitsMap = {};
+            stats?.forEach(s => unitsMap[s.unit_number] = s);
+
+            const grid = document.getElementById('unitGrid');
+            grid.innerHTML = '';
+            const upf = block.units_per_floor || 4;
+            grid.style.gridTemplateColumns = `repeat(${upf}, 1fr)`;
+            const totalUnits = (block.floors * block.units_per_floor) || block.total_units_in_block;
+
+            for(let i=1; i<=totalUnits; i++) {
+                const d = unitsMap[i] || {status: 'none', note: ''};
+                const div = document.createElement('div');
+                div.className = `u-circle ${d.status} ${d.note ? 'with-note' : ''}`;
+                div.innerText = i;
+                div.onclick = () => openUnitModal(i, d);
+                grid.appendChild(div);
+            }
+        }
+
+        async function updateUnit(status) {
+            document.getElementById('loader').style.display = 'flex';
+            const note = document.getElementById('noteInput').value.trim();
+            
+            // Önce mevcut durumu kontrol et
+            const { data: existing, error: fetchErr } = await db.from('unit_status').select('id').eq('block_id', currentBlockId).eq('unit_number', activeUnit).maybeSingle();
+            if(checkAuth(fetchErr)) return;
+
+            const payload = { block_id: currentBlockId, unit_number: activeUnit, status: status, note: note, updated_at: new Date() };
+            if (existing) payload.id = existing.id;
+
+            // Upsert (Varsa güncelle, yoksa ekle)
+            const { error } = await db.from('unit_status').upsert(payload);
+
+            if(!error) {
+                showStatusToast(activeUnit, status);
+                closeModal();
+                await selectBlock(currentBlockObj);
+            } else {
+                // Eğer hata bir RLS (yetki) hatasıysa direkt at, değilse uyarı ver
+                if(!checkAuth(error)) alert("İşlem başarısız: " + error.message);
+            }
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        function openUnitModal(num, data) {
+            activeUnit = num;
+            document.getElementById('mTitle').innerText = `DAİRE ${num}`;
+            document.getElementById('noteInput').value = data.note || '';
+            document.getElementById('selectionModal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('selectionModal').style.display = 'none'; }
+        
+        function showStatusToast(unit, status) {
+            let color = "#7cfc00";
+            let msg = `Daire ${unit}: ` + (status === 'montaj' ? "Montaj Bitti" : status === 'teslim' ? "Teslim Edildi" : status === 'not-home' ? "Evde Yok" : "Not Kaydedildi");
+            if(status === 'teslim') color = "#ff9800";
+            if(status === 'not-home') color = "#ef4444";
+            if(status === 'just-note') color = "#ffeb3b";
+
+            Toastify({ text: msg, duration: 2500, gravity: "top", position: "center", style: { background: "#1c222a", border: `1px solid ${color}`, color: color, borderRadius: "12px", fontWeight: "800", fontSize: "12px" } }).showToast();
+        }
+
+        init();
+    </script>
+</body>
+</html>
+
+

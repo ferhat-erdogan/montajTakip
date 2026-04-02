@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0d1117">
+    <title>Montaj Takip | Giriş</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #0d1117; --surface: #161b22; --accent: #7cfc00; 
+            --border: rgba(255, 255, 255, 0.12);
+            --text-main: #f0f6fc; --text-dim: #8b949e; --danger: #ff4d4d;
+        }
+
+        html, body { background-color: var(--bg); height: 100%; margin: 0; overflow: hidden; }
+        body { color: var(--text-main); font-family: 'Outfit', sans-serif; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; outline: none; border: none !important; }
+
+        .glass-card { 
+            background: var(--surface); border: 1px solid rgba(255,255,255,0.05) !important; 
+            border-radius: 40px; width: 100%; max-width: 400px; padding: 40px 30px; 
+            position: relative; text-align: center;
+            background-image: radial-gradient(circle at top right, #1d232d 0%, #161b22 60%);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .input-box { 
+            background: rgba(0,0,0,0.4); border: 1px solid var(--border) !important; 
+            border-radius: 20px; padding: 18px; color: white; width: 100%; 
+            margin-bottom: 15px; font-weight: 700; text-align: center; font-size: 16px;
+            transition: 0.3s;
+        }
+        .input-box:focus { border-color: var(--accent) !important; background: rgba(0,0,0,0.6); }
+
+        .btn-primary { 
+            background: var(--accent); color: #000; padding: 18px; border-radius: 22px; 
+            font-weight: 900; width: 100%; text-transform: uppercase; letter-spacing: 1.5px; 
+            transition: 0.3s; cursor: pointer;
+        }
+        .btn-primary:active { transform: scale(0.96); }
+
+        h1 { font-size: 1.5rem; font-weight: 900; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-main); }
+        h1 span { color: var(--accent); }
+
+        #loader { 
+            position: fixed; inset: 0; background: rgba(13, 17, 23, 0.8); 
+            backdrop-filter: blur(5px); display: none; justify-content: center; 
+            align-items: center; z-index: 10000; 
+        }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(124, 252, 0, 0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #toast { 
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%); 
+            background: rgba(22, 27, 34, 0.95); border: 1px solid var(--border) !important;
+            backdrop-filter: blur(10px); color: white; padding: 12px 24px; border-radius: 20px; 
+            font-weight: 700; font-size: 13px; z-index: 10001; transition: 0.5s;
+        }
+        #toast.show { top: 30px; }
+
+        .param-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(124, 252, 0, 0.1); color: var(--accent);
+            padding: 6px 12px; border-radius: 12px; font-size: 10px;
+            font-weight: 800; text-transform: uppercase; margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader"><div class="spinner"></div></div>
+    <div id="toast"></div>
+
+    <div class="glass-card">
+        <div class="mb-10">
+            <div class="text-4xl text-[#7cfc00] mb-4"><i class="fa-solid fa-bolt-lightning"></i></div>
+            <h1>MONTAJ <span>TAKİP</span></h1>
+        </div>
+
+        <div class="flex flex-col">
+            <input type="email" id="email" class="input-box" placeholder="E-POSTA">
+            <input type="password" id="password" class="input-box" placeholder="ŞİFRE">
+            <button class="btn-primary mt-4" onclick="handleAuth()">GİRİŞ YAP</button>
+        </div>
+
+        <div id="paramStatus" class="hidden">
+            <div class="param-badge">
+                <i class="fa-solid fa-link text-[8px]"></i> Yapılandırma Hazır
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const urlParam = params.get('url');
+        const keyParam = params.get('key');
+
+        function toggleLoader(s) { document.getElementById('loader').style.display = s ? 'flex' : 'none'; }
+        
+        function showToast(m, success = true) {
+            const t = document.getElementById('toast');
+            const color = success ? 'var(--accent)' : 'var(--danger)';
+            t.innerHTML = `<i class="fa-solid ${success ? 'fa-circle-check' : 'fa-circle-xmark'}" style="color:${color}"></i> ${m}`;
+            t.classList.add('show');
+            setTimeout(() => { t.classList.remove('show'); }, 2500);
+        }
+
+        // URL'den gelen verileri sakla
+        if (urlParam && keyParam) {
+            localStorage.setItem('sb_url', urlParam);
+            localStorage.setItem('sb_key', keyParam);
+            // Cookie olarak da sakla (Index.html'in okuması için)
+            document.cookie = `sb_url=${urlParam}; path=/; max-age=2592000`;
+            document.cookie = `sb_key=${keyParam}; path=/; max-age=2592000`;
+            document.getElementById('paramStatus').classList.remove('hidden');
+        }
+
+        async function handleAuth() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const url = localStorage.getItem('sb_url');
+            const key = localStorage.getItem('sb_key');
+
+            if (!url || !key) {
+                showToast("URL/Key Eksik! Linki kontrol edin.", false);
+                return;
+            }
+
+            if (!email || !password) {
+                showToast("Tüm alanları doldurun!", false);
+                return;
+            }
+
+            toggleLoader(true);
+            try {
+                const sb = supabase.createClient(url, key);
+                const { data, error } = await sb.auth.signInWithPassword({ email, password });
+                
+                if (error) throw error;
+
+                showToast("Giriş Başarılı");
+                setTimeout(() => { window.location.href = 'index.html'; }, 1000);
+
+            } catch (err) {
+                showToast("Hatalı Giriş!", false);
+                console.error(err);
+            } finally {
+                toggleLoader(false);
+            }
+        }
+
+        // Zaten giriş yapmışsa yönlendir
+        window.onload = () => {
+            const url = localStorage.getItem('sb_url');
+            const key = localStorage.getItem('sb_key');
+            if (url && key) {
+                const sb = supabase.createClient(url, key);
+                sb.auth.getUser().then(({data}) => {
+                    if (data?.user) window.location.href = 'index.html';
+                });
+            }
+        }
+    </script>
+</body>
+</html>
+
+

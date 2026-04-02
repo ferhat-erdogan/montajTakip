@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0d1117">
+    <title>Montaj Takip</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="manifest" href="manifest.json">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js');
+        });
+      }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #0d1117; --surface: #161b22; --accent: #7cfc00; 
+            --glass: rgba(22, 27, 34, 0.7); --border: rgba(255, 255, 255, 0.12);
+            --text-main: #f0f6fc; --text-dim: #8b949e; --danger: #ff4d4d;
+        }
+
+        html, body { background-color: var(--bg); height: 100%; margin: 0; overflow-x: hidden; scroll-behavior: smooth; }
+        body { color: var(--text-main); font-family: 'Outfit', sans-serif; padding: 20px 15px; min-height: 100vh; visibility: hidden; }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; outline: none; border: none !important; }
+
+        .glass-card { 
+            background: var(--surface); border: 1px solid rgba(255,255,255,0.05) !important; 
+            border-radius: 40px; width: 100%; max-width: 450px; padding: 25px; 
+            margin: 0 auto; min-height: 640px; position: relative; display: flex; flex-direction: column; 
+            background-image: radial-gradient(circle at top right, #1d232d 0%, #161b22 60%);
+        }
+        
+        #toast { 
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%); 
+            background: rgba(22, 27, 34, 0.95); border: 1px solid var(--border) !important;
+            backdrop-filter: blur(10px); color: white; padding: 12px 24px; border-radius: 20px; 
+            font-weight: 700; font-size: 13px; z-index: 10001; text-align: center; 
+            transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex; align-items: center; gap: 10px; min-width: 250px; justify-content: center;
+        }
+        #toast.show { top: 30px; }
+
+        .online-indicator {
+            width: 8px; height: 8px; background: var(--accent);
+            border-radius: 50%; display: inline-block;
+            margin-right: 10px; position: relative;
+            box-shadow: 0 0 10px var(--accent);
+        }
+        .online-indicator::after {
+            content: ''; position: absolute; inset: -4px;
+            border-radius: 50%; border: 2px solid var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        .modal-overlay { 
+            position: fixed; inset: 0; background: rgba(13, 17, 23, 0.7);
+            backdrop-filter: blur(15px); display: none; justify-content: center; align-items: center; z-index: 9999; padding: 20px; 
+        }
+        .modal-sheet { background: #1c222a; border: 1px solid var(--border) !important; border-radius: 35px; width: 100%; max-width: 380px; padding: 30px; }
+
+        .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        h1 { font-size: 1.5rem; font-weight: 900; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-main); }
+        h1 span { color: var(--accent); }
+
+        .pro-item { 
+            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%);
+            border: 1px solid var(--border) !important; 
+            border-radius: 28px; padding: 20px; margin-bottom: 15px; transition: 0.3s; 
+            display: flex; flex-direction: column; cursor: pointer; position: relative;
+        }
+        .pro-item:active { transform: scale(0.97); }
+
+        .card-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+        .card-icon { width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05) !important; display: flex; align-items: center; justify-content: center; color: var(--text-dim); }
+        .item-title { font-size: 1.35rem; font-weight: 900; color: var(--text-main); letter-spacing: -0.5px; }
+
+        .stat-group { display: flex; gap: 8px; }
+        .pill { 
+            padding: 5px 12px; border-radius: 12px; font-size: 10px; font-weight: 800; 
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05) !important; 
+            color: var(--text-dim); display: flex; align-items: center; gap: 6px; 
+            text-transform: uppercase;
+        }
+        .pill i { font-size: 11px; color: var(--accent); }
+        .pill b { font-size: 11px; margin-left: 1px; color: white; }
+
+        .input-box { background: rgba(0,0,0,0.4); border: 1px solid var(--border) !important; border-radius: 20px; padding: 18px; color: white; width: 100%; margin-bottom: 15px; font-weight: 700; text-align: center; font-size: 16px; }
+        .btn-primary { background: var(--accent); color: #000; padding: 18px; border-radius: 22px; font-weight: 900; width: 100%; text-transform: uppercase; letter-spacing: 1.5px; }
+        .btn-add { background: var(--glass); backdrop-filter: blur(10px); color: var(--accent); font-size: 10px; font-weight: 800; padding: 8px 15px; border-radius: 12px; border: 1px solid var(--border) !important; display: flex; align-items: center; gap: 6px; text-transform: uppercase; }
+        
+        #viewContainer { flex: 1; overflow-y: auto; }
+        #viewContainer::-webkit-scrollbar { width: 0; }
+        #loader { position: fixed; inset: 0; background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(5px); display: none; justify-content: center; align-items: center; z-index: 10000; }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(124, 252, 0, 0.1); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loader"><div class="spinner"></div></div>
+    <div id="toast"></div>
+
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-sheet text-center">
+            <div id="confirmIcon" class="text-4xl mb-4"></div>
+            <h3 id="confirmTitle" class="text-lg font-black mb-2 uppercase text-white"></h3>
+            <p id="confirmText" class="text-dim text-xs font-semibold mb-8 px-4"></p>
+            <div class="flex flex-col gap-3">
+                <button id="confirmActionBtn" class="btn-primary" style="background: var(--danger); color: white;">ONAYLA</button>
+                <button class="text-dim font-black text-[11px] py-2 uppercase tracking-widest" onclick="closeModal()">İPTAL ET</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-card">
+        <div id="appSection" class="flex flex-col h-full" style="height: 600px;">
+            <div class="nav-header">
+                <div><h1 class="text-2xl tracking-widest">MONTAJ <span>TAKİP</span></h1></div>
+                <div class="w-10 text-right">
+                    <i class="fa-solid fa-power-off text-dim hover:text-danger cursor-pointer p-2 transition-colors" onclick="askLogout()"></i>
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center mb-8 px-2">
+                <div class="flex items-center text-[13px] font-900 text-white uppercase tracking-widest italic">
+                    <span class="online-indicator"></span>
+                    <span id="userLabel" class="opacity-80">...</span>
+                </div>
+                <button class="btn-add" onclick="openCreateModal()">
+                    <i class="fa-solid fa-plus text-xs"></i> <span>SİTE EKLE</span>
+                </button>
+            </div>
+
+            <div id="viewContainer"></div>
+        </div>
+    </div>
+
+    <div id="createModal" class="modal-overlay">
+        <div class="modal-sheet">
+            <h2 class="text-center font-black text-white mb-7 uppercase text-xs tracking-widest">YENİ SİTE KAYDI</h2>
+            <input type="text" id="siteName" class="input-box" placeholder="SİTE ADI">
+            <input type="text" id="blockNames" class="input-box" placeholder="BLOKLAR (A, B, C)">
+            <div class="grid grid-cols-2 gap-3">
+                <input type="number" id="totalUnits" class="input-box" placeholder="BLOK DAİRE">
+                <input type="number" id="upf" class="input-box" placeholder="KATTAKİ">
+            </div>
+            <button class="btn-primary mt-3" onclick="processCreate()">KAYDET</button>
+            <button class="w-full mt-5 text-dim font-black text-[10px] uppercase tracking-widest" onclick="closeModal()">İPTAL</button>
+        </div>
+    </div>
+
+    <script>
+        let sb = null;
+        const vContainer = document.getElementById('viewContainer');
+
+        function getCookie(name) {
+            let value = `; ${document.cookie}`;
+            let parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+
+        // Çerezleri ve Yerel Depolamayı tamamen kazıyan fonksiyon
+        function forceLogout() {
+            localStorage.clear();
+            const cookies = document.cookie.split(";");
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i];
+                const eqPos = cookie.indexOf("=");
+                const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
+                document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+            }
+            window.location.href = 'login.html';
+        }
+
+        function toggleLoader(s) { document.getElementById('loader').style.display = s ? 'flex' : 'none'; }
+        
+        function showToast(m, color = 'var(--accent)') {
+            const t = document.getElementById('toast');
+            t.innerHTML = `<i class="fa-solid fa-circle-check" style="color:${color}"></i> ${m}`;
+            t.classList.add('show');
+            setTimeout(() => { t.classList.remove('show'); }, 2500);
+        }
+
+        async function initApp() {
+            const url = getCookie('sb_url') || localStorage.getItem('sb_url');
+            const key = getCookie('sb_key') || localStorage.getItem('sb_key');
+            
+            if(!url || !key) { forceLogout(); return; }
+
+            if(!sb) {
+                sb = supabase.createClient(url, key);
+                
+                // --- GERÇEK ZAMANLI OTURUM DİNLEYİCİSİ ---
+                // Kullanıcı silinirse veya oturum düşerse ANINDA çalışır
+                sb.auth.onAuthStateChange((event, session) => {
+                    if (event === 'SIGNED_OUT' || !session) {
+                        forceLogout();
+                    }
+                });
+            }
+            
+            const { data: { user }, error } = await sb.auth.getUser();
+            if (error || !user) { forceLogout(); return; }
+
+            document.getElementById('userLabel').innerText = user.email.split('@')[0];
+            fetchData();
+        }
+
+        async function fetchData() {
+            toggleLoader(true);
+            const { data: sites, error } = await sb.from('sites').select('*').order('created_at', { ascending: false });
+            
+            if (error) { 
+                console.error(error);
+                // Veritabanı hatası yetkisizlikten kaynaklanıyorsa çıkış yap
+                if(error.status === 401 || error.status === 403) forceLogout();
+                toggleLoader(false); 
+                return; 
+            }
+
+            vContainer.innerHTML = '';
+            if(!sites || sites.length === 0) {
+                vContainer.innerHTML = '<div class="text-center py-20 opacity-30 uppercase text-[10px] tracking-[5px]">Kayıt Yok</div>';
+                toggleLoader(false); return;
+            }
+
+            sites.forEach(site => {
+                vContainer.innerHTML += `
+                    <div class="pro-item" onclick="location.href='detail.html?id=${site.id}'">
+                        <div class="card-header">
+                            <div class="card-icon"><i class="fa-solid fa-house-chimney text-lg"></i></div>
+                            <span class="item-title">${site.site_name}</span>
+                            <i class="fa-solid fa-trash-can text-dim opacity-20 p-4 hover:text-danger hover:opacity-100" style="position: absolute; top: 10px; right: 10px;" onclick="event.stopPropagation(); askDelete('${site.id}')"></i>
+                        </div>
+                        <div class="stat-group">
+                            <div class="pill"><i class="fa-solid fa-layer-group"></i> BLOK <b>${site.total_blocks}</b></div>
+                            <div class="pill"><i class="fa-solid fa-door-open"></i> DAİRE <b>${site.total_units}</b></div>
+                        </div>
+                    </div>`;
+            });
+            toggleLoader(false);
+        }
+
+        async function processCreate() {
+            const name = document.getElementById('siteName').value.trim();
+            const blocks = document.getElementById('blockNames').value.trim();
+            const units = parseInt(document.getElementById('totalUnits').value);
+            const upf = parseInt(document.getElementById('upf').value);
+
+            if(!name || !blocks || !units || !upf) return showToast("Eksik!", "var(--danger)");
+
+            toggleLoader(true);
+            try {
+                const { data: { user }, error: userErr } = await sb.auth.getUser();
+                if(userErr || !user) { forceLogout(); return; }
+
+                const blocksArr = blocks.split(',').map(b => b.trim());
+                const { data: site, error } = await sb.from('sites').insert([{ 
+                    site_name: name, 
+                    user_id: user.id, 
+                    total_blocks: blocksArr.length, 
+                    total_units: blocksArr.length * units 
+                }]).select().single();
+
+                if(error) {
+                    if(error.status === 401) forceLogout();
+                    else throw error;
+                }
+
+                const floors = Math.ceil(units / upf);
+                await sb.from('blocks').insert(blocksArr.map(bName => ({ 
+                    site_id: site.id, 
+                    block_name: bName, 
+                    floors, 
+                    units_per_floor: upf, 
+                    total_units_in_block: units 
+                })));
+                
+                showToast("Eklendi"); closeModal(); fetchData();
+            } catch(e) { 
+                showToast("Hata!"); 
+                console.error(e);
+            } finally { toggleLoader(false); }
+        }
+
+        function askDelete(id) {
+            document.getElementById('confirmIcon').innerHTML = '<i class="fa-solid fa-circle-exclamation text-danger"></i>';
+            document.getElementById('confirmTitle').innerText = "SİTEYİ SİL?";
+            document.getElementById('confirmText').innerText = "Tüm veriler kalıcı olarak silinecektir.";
+            const btn = document.getElementById('confirmActionBtn');
+            btn.innerText = "SİL";
+            btn.onclick = async () => {
+                toggleLoader(true);
+                const { error } = await sb.from('sites').delete().eq('id', id);
+                if(error && error.status === 401) forceLogout();
+                else { fetchData(); showToast("Silindi", "var(--danger)"); }
+                closeModal();
+                toggleLoader(false);
+            };
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        function askLogout() {
+            document.getElementById('confirmIcon').innerHTML = '<i class="fa-solid fa-door-open text-dim"></i>';
+            document.getElementById('confirmTitle').innerText = "ÇIKIŞ YAP?";
+            document.getElementById('confirmText').innerText = "Oturumunuz sonlandırılacaktır.";
+            const btn = document.getElementById('confirmActionBtn');
+            btn.style.background = "var(--danger)"; btn.style.color = "black";
+            btn.innerText = "ÇIKIŞ YAP";
+            btn.onclick = async () => {
+                if(sb) await sb.auth.signOut();
+                forceLogout();
+            };
+            document.getElementById('confirmModal').style.display = 'flex';
+        }
+
+        function openCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
+        function closeModal() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display='none'); }
+
+        window.onload = () => { initApp(); document.body.style.visibility = 'visible'; };
+    </script>
+</body>
+</html>
+
+

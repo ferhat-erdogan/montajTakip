@@ -1,0 +1,24 @@
+{
+  "id": "/montajTakip/",
+  "name": "MONTAJ TAKİP",
+  "short_name": "Montaj Takip",
+  "start_url": "/montajTakip/", 
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
+
