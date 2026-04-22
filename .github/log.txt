@@ -1,7 +1,7 @@
 
-🔄 Güncelleme Tarihi: 21.04.2026 13:51:21
+🔄 Güncelleme Tarihi: 22.04.2026 10:59:54
 ════════════════════════════════
-✅ montajTakip : AKTİF (404)
+❌ montajTakip : HATA (000000)
 ════════════════════════════════
-📊 Başarılı: 1 | Hatalı: 0
+📊 Başarılı: 0 | Hatalı: 1
 
